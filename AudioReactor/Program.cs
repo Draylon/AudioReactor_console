@@ -11,7 +11,7 @@ namespace AudioReactor{
 
         [STAThread]
         static void Main(string[] args){
-            Console.WriteLine("Hello World!");
+            Console.WriteLine("AudioReactor");
 
             audioReactor = new AudioReactorClass();
             audioReactor.start();

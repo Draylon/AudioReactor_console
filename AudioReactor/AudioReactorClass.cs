@@ -7,24 +7,22 @@ using System.Runtime.InteropServices;
 
 namespace AudioReactor
 {
-    public partial class AudioReactorClass
-    {
+    public partial class AudioReactorClass{
 
         // MICROPHONE ANALYSIS SETTINGS
-        private int RATE = 44100; // sample rate of the sound card
-        private int BUFFERSIZE = (int)Math.Pow(2, 8); // must be a multiple of 2
-        private double[] printDataArray = new double[(int)Math.Pow(2, 6)];
+        private static int RATE = 44100; // sample rate of the sound card
+        private static int BUFFERSIZE = (int)Math.Pow(2, 8); // must be a multiple of 2
+        private static double[] printDataArray = new double[(int)Math.Pow(2, 6)];
+        private static bool printDataArrayIsReady=true;
 
         // prepare class objects
-        public BufferedWaveProvider bwp;
+        private static BufferedWaveProvider bwp;
 
-        public AudioReactorClass()
-        {
+        public AudioReactorClass(){
             StartListeningToMicrophone();
         }
 
-        void AudioDataAvailable(object sender, WaveInEventArgs e)
-        {
+        void AudioDataAvailable(object sender, WaveInEventArgs e){
             bwp.AddSamples(e.Buffer, 0, e.BytesRecorded);
         }
 
@@ -61,7 +59,6 @@ namespace AudioReactor
         //}
 
 
-        public int numberOfDraws = 0;
         public bool needsAutoScaling = true;
         //public void PlotLatestData(){
         //    // check the incoming microphone audio
@@ -124,7 +121,8 @@ namespace AudioReactor
 
         //}
 
-        public void getLatestData(int slots = 2){
+        public static void getLatestData(int slots = 2){
+            
             // check the incoming microphone audio
             int frameSize = BUFFERSIZE;
             var audioBytes = new byte[frameSize];
@@ -146,8 +144,7 @@ namespace AudioReactor
             double[] fftReal = new double[graphPointCount / 2];
 
             // populate Xs and Ys with double data
-            for (int i = 0; i < graphPointCount; i++)
-            {
+            for (int i = 0; i < graphPointCount; i++){
                 // read the int16 from the two bytes
                 Int16 val = BitConverter.ToInt16(audioBytes, i * 2);
                 // store the value in Ys as a percent (+/- 100% = 200%)
@@ -156,14 +153,15 @@ namespace AudioReactor
 
             // calculate the full FFT
             fftReal = FFT(pcm);
-
-            for(int idarr=0;idarr < printDataArray.Length; idarr++){
+            if (printDataArray.Length != fftReal.Length)
+                Console.WriteLine("DIFFERENT ARRAY SIZE!!!");
+            for (int idarr = 0; idarr < printDataArray.Length; idarr++){
                 if (fftReal[idarr] > printDataArray[idarr])
-                    printDataArray[idarr] = fftReal[idarr];
+                    printDataArray[idarr] =  fftReal[idarr];
                 else
-                    printDataArray[idarr] /= fftReal[idarr] + 1.2;
+                    printDataArray[idarr] /= (fftReal[idarr] + 1.5);
             }
-
+            
             // determine horizontal axis units for graphs
             //double pcmPointSpacingMs = RATE / 1000;
             //double fftMaxFreq = RATE / 2;
@@ -171,88 +169,62 @@ namespace AudioReactor
 
             // just keep the real half (the other half imaginary)
             //Array.Copy(fft, fftReal, fftReal.Length);
-
-            double sum = 0;
-            //int step = (int)printDataArray.Length / 1;//  slots;
-            //Console.WriteLine(printDataArray.Length);
-            string print = "";
-
-            for (int isl = 0; isl < printDataArray.Length; isl++){
-                double val=0;
-                //int ill = 0;
-                //while(ill < slots && (isl+ill)< fftReal.Length ) {
-                //    val += fftReal[isl + ill];
-                //    ill++;
-                //}
-                val = printDataArray[isl];
-                val *= 1.5;
-                for (var j = 0; j < Math.Floor(val); j++){
-                    print += "|";
-                }
-                print += "\n";
-            }
-            print += "\n\n\n\n";
-            Console.WriteLine(print);
-            return;
-
-            //for (int isl = 0; isl < slots; isl++){ 
-            //    sum = 0;
-            //    for (int jb = 0; jb < step; jb++)
-            //    {
-            //        sum += fftReal[(step * isl) + jb];
-            //    }
-            //    for (var j = 0; j < (int)sum * 2; j++)
-            //    {
-            //        print += "o";
-            //    }
-            //    print += "\n";
-            //}
-            //print += "\n\n\n\n";
-            //Console.WriteLine(print);
-
-            //return;
-
-            //double[] remap_fftReal = new double[slots];
-            //for(int isl = 0; isl < slots; isl++){
-            //    double sum = 0;
-            //    int step = (int)fftReal.Length / slots;
-            //    for (int jb = 0; jb < step; jb++){
-            //        sum += fftReal[(step * isl) + jb];
-            //    }
-            //    remap_fftReal[isl] = sum;
-            //}
-
-            //return remap_fftReal;
         }
-        private Thread thread = new Thread(() =>
-        {
-            AudioReactorClass audioReactor = new AudioReactorClass();
-            bool wait_proc = true;
-            while (true)
-            {
-                if (wait_proc == true)
-                {
-                    wait_proc = false;
-                    audioReactor.getLatestData();
-                    wait_proc = true;
+        static int numberOfDraws = 0;
+        private static Thread printConsole = new Thread(() =>{
+            string print = "";
+            while (true){
+                numberOfDraws++;
+                Console.SetCursorPosition(20, 0);
+                Console.Write(numberOfDraws);
+                if (printDataArrayIsReady){
+                    print = "";
+                    Console.SetCursorPosition(0, 1);
+                    for (int isl = 0; isl < printDataArray.Length; isl+=2){
+                        double val=0;
+
+                        val = printDataArray[isl] + printDataArray[isl + 1];
+                        val *= 1.5;
+                        while(val>0){
+                            print += "*";
+                            val--;
+                        }
+                        print += "                                                                     \n";
+                    }
+                    //printDataArrayIsReady = false;
+                    Console.WriteLine(print);
                 }
-                Thread.Sleep(25);
+                if (numberOfDraws > 9999)
+                    numberOfDraws = 0;
+                Thread.Sleep(40);
             }
         });
 
-        public void start()
-        {
+        private Thread thread = new Thread(() =>{
+            //AudioReactorClass audioReactor = new AudioReactorClass();
+            printConsole.Start();
+            int intv = 20;
+            while (true){
+                Thread.Sleep(intv);
+                //printDataArrayIsReady = false;
+                getLatestData();
+                //printDataArrayIsReady = true;
+                Thread.Sleep(intv);
+            }
+        });
+
+        public void start(){
             thread.Start();
         }
 
-        public double[] FFT(double[] data)
+        public static double[] FFT(double[] data)
         {
             double[] fft = new double[data.Length / 2];
             System.Numerics.Complex[] fftComplex = new System.Numerics.Complex[data.Length];
             for (int i = 0; i < data.Length; i++)
                 fftComplex[i] = new System.Numerics.Complex(data[i], 0.0);
             Accord.Math.FourierTransform.FFT(fftComplex, Accord.Math.FourierTransform.Direction.Forward);
-            for (int i = 0; i < data.Length / 2; i++)
+            for (int i = 0; i < data.Length/2; i++)
                 fft[i] = fftComplex[i].Magnitude;
             return fft;
         }
