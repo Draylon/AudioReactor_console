@@ -16,4 +16,4 @@
 
 
 # Windows Release zip:
-https://drive.google.com/open?id=1VRn9OrUx3WXlRJY2CAhHTkgsUJYRPFBA
+Zip in the Releases Tab
