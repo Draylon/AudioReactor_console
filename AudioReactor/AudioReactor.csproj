@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Accord.Math" Version="3.8.2-alpha" />
+    <PackageReference Include="System.Management" Version="4.7.0" />
   </ItemGroup>
 
   <ItemGroup>
